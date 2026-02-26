@@ -27,14 +27,9 @@ jobs:
       - name: Test
         run: make test
 
-      - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v7
-        with:
-          version: v2.10.1
-          install-only: true
-
       - name: Lint (threshold 5)
         run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.10.1
           set +e
           OUTPUT=$(golangci-lint run ./... 2>&1)
           ISSUES=$(echo "$OUTPUT" | grep -cE "^.+:[0-9]+:[0-9]+:" || true)

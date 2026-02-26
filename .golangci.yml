@@ -20,6 +20,5 @@ linters:
         - style
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 5
   max-same-issues: 0

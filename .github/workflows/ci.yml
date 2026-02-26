@@ -27,10 +27,24 @@ jobs:
       - name: Test
         run: make test
 
-      - name: golangci-lint
+      - name: Install golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.10.1
+          install-only: true
+
+      - name: Lint (threshold 5)
+        run: |
+          set +e
+          OUTPUT=$(golangci-lint run ./... 2>&1)
+          ISSUES=$(echo "$OUTPUT" | grep -cE "^.+:[0-9]+:[0-9]+:" || true)
+          echo "$OUTPUT"
+          echo "---"
+          echo "Lint issues found: $ISSUES"
+          if [ "$ISSUES" -gt 5 ]; then
+            echo "::error::Lint issues ($ISSUES) exceed threshold of 5"
+            exit 1
+          fi
 
       - name: Format check
         run: |

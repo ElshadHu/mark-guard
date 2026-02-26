@@ -81,3 +81,44 @@ type Symbol struct {
 	// Group identifies the const/var declaration group
 	Group string
 }
+
+// ChangeKind classifies how a symbol changed between two versions
+type ChangeKind int
+
+// ChangeKind shows the change type
+const (
+	ChangeAdded ChangeKind = iota
+	ChangeRemoved
+	ChangeModified
+)
+
+// ChangeToString returns a readable label for the change kind
+func (c ChangeKind) ChangeToString() string {
+	switch c {
+	case ChangeAdded:
+		return "added"
+	case ChangeRemoved:
+		return "removed"
+	case ChangeModified:
+		return "modified"
+	default:
+		return "unknown"
+	}
+}
+
+// FieldChange describes a single sub-change within a modified symbol
+type FieldChange struct {
+	Description string
+}
+
+// SymbolDiff describes how a single exported symbol changed
+type SymbolDiff struct {
+	// Name is the symbol identifier
+	Name string
+	Kind ChangeKind
+	// Symbol holds the symbol data
+	Symbol       Symbol
+	OldSignature string
+	// Changes lists specific sub-changes for modified symbols
+	Changes []FieldChange
+}

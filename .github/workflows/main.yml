@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: make build
+
+      - name: Test
+        run: make test
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --issues-exit-code=0
+
+      - name: Lint (threshold 5)
+        run: |
+          ISSUES=$(golangci-lint run ./... 2>&1 | grep -c "^" || true)
+          echo "Lint issues found: $ISSUES"
+          if [ "$ISSUES" -gt 5 ]; then
+            echo "::error::Lint issues ($ISSUES) exceed threshold of 5"
+            golangci-lint run ./...
+            exit 1
+          fi
+
+      - name: Format check
+        run: |
+          UNFORMATTED=$(gofmt -l .)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "::error::These files are not formatted:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi

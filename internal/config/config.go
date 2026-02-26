@@ -22,18 +22,27 @@ type LLMConfig struct {
 	Model     string `yaml:"model"`
 }
 
-// DocsConfig holds settings for the LLM provider
+// DocsConfig holds settings for documentation scanning
 type DocsConfig struct {
-	Paths   []string `yaml:"paths"`
-	Exclude []string `yaml:"exclude"`
+	Paths    []string     `yaml:"paths"`
+	Exclude  []string     `yaml:"exclude"`
+	Mappings []DocMapping `yaml:"mappings"`
+}
+
+// DocMapping links doc files to code paths.
+// If any changed code file starts with a Code prefix,
+// the mapped Docs files are included in the LLM context.
+type DocMapping struct {
+	Docs []string `yaml:"docs"`
+	Code []string `yaml:"code"`
 }
 
 // defaults returns a Config with sensible default values
 func defaults() Config {
 	return Config{LLM: LLMConfig{
-		BaseURL:   "http://api.openai.com/v1",
-		APIKeyEnv: "OPENAI_API_KEY",
-		Model:     "gpt-40",
+		BaseURL:   "https://generativelanguage.googleapis.com/v1beta/openai",
+		APIKeyEnv: "GEMINI_API_KEY",
+		Model:     "gemini-2.0-flash",
 	},
 		Docs: DocsConfig{
 			Paths:   []string{"docs/", "README.md"},

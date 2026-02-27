@@ -16,6 +16,7 @@ import (
 var (
 	baseRef    string
 	configPath string
+	maxTokens  int
 )
 
 // newFormatCmd creates and returns the format subcommand
@@ -27,6 +28,7 @@ func newFormatCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&baseRef, "base", "HEAD", "git ref to compare against")
 	cmd.Flags().StringVar(&configPath, "config", ".markguard.yaml", "path to config file")
+	cmd.Flags().IntVar(&maxTokens, "max-tokens", 50000, "abort if estimated tokens exceed this limit")
 	return cmd
 }
 
@@ -79,6 +81,13 @@ func runFormat(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("scanning %d doc file(s) (est. %d tokens)\n",
 		len(scanResult.Docs), scanResult.EstimatedTokens)
+
+	// Token budget check
+	if scanResult.EstimatedTokens > maxTokens {
+		return fmt.Errorf("estimated %d tokens exceeds --max-tokens %d\n"+
+			"  Narrow scope: add docs.exclude or docs.mappings to .markguard.yaml",
+			scanResult.EstimatedTokens, maxTokens)
+	}
 
 	// Build prompt
 	docInputs := bridgeDocInputs(scanResult.Docs)

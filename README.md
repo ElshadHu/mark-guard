@@ -2,13 +2,13 @@
 
 A CLI tool that keeps your documentation in sync with your Go code.
 
-You change code. You forget to update docs. mark-guard parses the AST of your old code (from git) and your new code (on disk), extracts a semantic diff of exported symbols, and produces a structured summary of what changed in the public API. The next step is feeding that diff plus your current markdown docs to an LLM and writing the updated docs back to disk.
+You change code. You forget to update docs. mark-guard parses the AST of your old code (from git) and your new code (on disk), extracts a semantic diff of exported symbols, and produces a structured summary of what changed in the public API. It then feeds that diff plus your current markdown docs to an LLM and writes the updated docs back to disk.
 
 I built this because I keep forgetting to update docs after code changes. I see the same problem in open source projects all the time. Text diffs are noisy and miss the point. AST-level diffing tells you exactly what changed in the public API, which is exactly what documentation cares about.
 
 ## Status
 
-Work in progress. Not usable end-to-end yet.
+End-to-end pipeline works. Hardening in progress (see docs/day8.md for the improvement plan).
 
 | Phase | Description | Status |
 |---|---|---|
@@ -16,8 +16,8 @@ Work in progress. Not usable end-to-end yet.
 | 3 | Go Symbol Extraction | Done |
 | 4 | Symbol Diffing | Done |
 | 5 | Doc Scanning | Done |
-| 6 | LLM Integration | Not started |
-| 7 | End-to-End Wiring | Not started |
+| 6 | LLM Integration | Done |
+| 7 | End-to-End Wiring | Done |
 
 **What works today:**
 - Detects changed `.go` files via git
@@ -26,20 +26,25 @@ Work in progress. Not usable end-to-end yet.
 - Produces human-readable diff summaries
 - Scans and selects relevant markdown docs via config-based mapping
 - Loads config from `.markguard.yaml` with sensible defaults
-- Verifies the `.markguard.yaml` configuration for correctness.
+- Verifies the `.markguard.yaml` configuration for correctness
+- Sends diff + docs to LLM (Gemini/OpenAI compatible) and writes updates back
 
-**What's not built yet:**
-- LLM integration (sending diff + docs to Gemini/OpenAI)
-- Writing updated docs back to disk
-- End-to-end wiring in the `format` command
+**What needs hardening:**
+- Dry-run mode and user confirmation before writing
+- JSON structured output instead of full-file replacement
+- Prompt injection mitigation
+- Pre-write validation (content-loss guard)
+- Token optimization for large repos
 
-## How It Works (currently implemented)
+## How It Works
 
 1. Detect changed `.go` files via `git diff --name-only` + `git ls-files --others`
 2. Read old version from `git show HEAD:<file>`, new version from disk
 3. Parse both with `go/parser.ParseFile`, extract exported symbols (functions, types, structs, interfaces, consts, vars)
 4. Diff the two symbol sets: what was added, removed, or modified (down to individual parameters, fields, methods)
 5. Scan configured doc paths, select relevant markdown files via config-based mapping
+6. Build prompt with diff summary + doc content, send to LLM
+7. Parse LLM response and write updated docs back to disk
 
 ## Key Design Decisions
 
@@ -93,7 +98,7 @@ Without `.markguard.yaml`, defaults are:
 - **Provider:** Gemini free tier (`gemini-2.0-flash`)
 - **API key env:** `GEMINI_API_KEY`
 - **Doc paths:** `docs/`, `README.md`
-- **Mappings:** None (sends all docs — fine for small repos)
+- **Mappings:** None (sends all docs, fine for small repos)
 
 ## Development
 
@@ -112,15 +117,15 @@ make run       # go run ./cmd/mark-guard format
 | 3 | Symbol Extraction | Parser using `go/parser` that extracts exported functions, methods, structs, interfaces, consts, vars with structured params/fields. | Done |
 | 4 | Symbol Diffing | Map-keyed comparison, three-pass detection (added/removed/modified), per-field change detection, deterministic sorted output, human-readable summary formatter. | Done |
 | 5 | Doc Scanning | Scanner that walks configured paths, reads `.md` files, filters by config-based doc-to-code mapping, token estimation. | Done |
-| 6 | LLM Integration | — | Not started |
-| 7 | End-to-End Wiring | — | Not started |
+| 6 | LLM Integration | OpenAI-compatible client with retry/backoff, prompt builder, response parser, token budget check. | Done |
+| 7 | End-to-End Wiring | `format` command runs the full pipeline: git diff, symbol extraction, doc scan, LLM call, write updates. | Done |
 
 ## References
 
 Projects and resources I studied while building this:
 
 | Project | What I found |
-|---|---|---|
+|---|---|
 | `golang.org/x/exp/apidiff` | API change detection between Go package versions. Map-keyed symbol comparison. |
 | `go/doc` | Groups methods, consts, vars under parent types. |
 | `go/parser` + `go/ast` | AST parsing without type-checking. |

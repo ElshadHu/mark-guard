@@ -142,12 +142,11 @@ func extractAndDiff(files []git.ChangedFile) (diffs []symbols.SymbolDiff, change
 		changedCodePaths[i] = files[i].Path
 		oldSyms, err := symbols.ExtractSymbols(files[i].Path, files[i].OldContent)
 		if err != nil {
-			// new file or unparseable old version
-			oldSyms = nil
+			fmt.Fprintf(os.Stderr, "warning: could not parse old %s: %v\n", files[i].Path, err)
 		}
 		newSyms, err := symbols.ExtractSymbols(files[i].Path, files[i].NewContent)
 		if err != nil {
-			newSyms = nil
+			fmt.Fprintf(os.Stderr, "warning: could not parse new %s: %v\n", files[i].Path, err)
 		}
 		fileDiffs := symbols.Diff(oldSyms, newSyms)
 		allDiffs = append(allDiffs, fileDiffs...)

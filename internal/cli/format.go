@@ -13,34 +13,40 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	baseRef    string
-	configPath string
-	maxTokens  int
-)
+// FormatOptions holds all flags for the format command
+type FormatOptions struct {
+	BaseRef    string
+	ConfigPath string
+	MaxTokens  int
+	Write      bool
+}
 
 // newFormatCmd creates and returns the format subcommand
 func newFormatCmd() *cobra.Command {
+	opts := &FormatOptions{}
 	cmd := &cobra.Command{
 		Use:   "format",
 		Short: "Detect changed Go exports and update docs",
-		RunE:  runFormat,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runFormat(opts)
+		},
 	}
-	cmd.Flags().StringVar(&baseRef, "base", "HEAD", "git ref to compare against")
-	cmd.Flags().StringVar(&configPath, "config", ".markguard.yaml", "path to config file")
-	cmd.Flags().IntVar(&maxTokens, "max-tokens", 50000, "abort if estimated tokens exceed this limit")
+	cmd.Flags().StringVar(&opts.BaseRef, "base", "HEAD", "git ref to compare against")
+	cmd.Flags().StringVar(&opts.ConfigPath, "config", ".markguard.yaml", "path to config file")
+	cmd.Flags().IntVar(&opts.MaxTokens, "max-tokens", 50000, "abort if estimated tokens exceed this limit")
+	cmd.Flags().BoolVar(&opts.Write, "write", false, "apply changes to doc files (default: dry-run)")
 	return cmd
 }
 
-func runFormat(cmd *cobra.Command, args []string) error {
+func runFormat(opts *FormatOptions) error {
 	// Load config
-	cfg, err := config.Load(configPath)
+	cfg, err := config.Load(opts.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
 	// Init git client
-	gitClient, err := git.NewClient("", baseRef)
+	gitClient, err := git.NewClient("", opts.BaseRef)
 	if err != nil {
 		return fmt.Errorf("init git client: %w", err)
 	}
@@ -83,10 +89,10 @@ func runFormat(cmd *cobra.Command, args []string) error {
 		len(scanResult.Docs), scanResult.EstimatedTokens)
 
 	// Token budget check
-	if scanResult.EstimatedTokens > maxTokens {
+	if scanResult.EstimatedTokens > opts.MaxTokens {
 		return fmt.Errorf("estimated %d tokens exceeds --max-tokens %d\n"+
 			"  Narrow scope: add docs.exclude or docs.mappings to .markguard.yaml",
-			scanResult.EstimatedTokens, maxTokens)
+			scanResult.EstimatedTokens, opts.MaxTokens)
 	}
 
 	// Build prompt
@@ -113,6 +119,14 @@ func runFormat(cmd *cobra.Command, args []string) error {
 	updates, err := llm.ParseResponse(resp, docPaths)
 	if err != nil {
 		return fmt.Errorf("parsing LLM response: %w", err)
+	}
+
+	if !opts.Write {
+		fmt.Println("\n== Dry Run (pass --write to apply) ==")
+		for path := range updates {
+			fmt.Printf("  would update: %s\n", path)
+		}
+		return nil
 	}
 
 	repoRoot := gitClient.RepoRoot()

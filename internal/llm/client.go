@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -121,7 +122,11 @@ func (c *Client) Complete(ctx context.Context, req ChatRequest) (*ChatResponse, 
 		resp, err := c.doRequest(ctx, body)
 		if err != nil {
 			lastErr = err
-			// Network errors are retryable
+			// Only retry on retryable errors (429, 5xx, network)
+			var llmErr *Error
+			if errors.As(err, &llmErr) && !llmErr.Retryable {
+				return nil, err // 401, 400, 404 — fail immediately
+			}
 			continue
 		}
 

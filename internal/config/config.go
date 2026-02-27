@@ -42,7 +42,7 @@ func defaults() Config {
 	return Config{LLM: LLMConfig{
 		BaseURL:   "https://generativelanguage.googleapis.com/v1beta/openai",
 		APIKeyEnv: "GEMINI_API_KEY",
-		Model:     "gemini-2.0-flash",
+		Model:     "gemini-2.5-flash",
 	},
 		Docs: DocsConfig{
 			Paths:   []string{"docs/", "README.md"},

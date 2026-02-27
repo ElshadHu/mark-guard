@@ -26,6 +26,7 @@ Work in progress. Not usable end-to-end yet.
 - Produces human-readable diff summaries
 - Scans and selects relevant markdown docs via config-based mapping
 - Loads config from `.markguard.yaml` with sensible defaults
+- Verifies the `.markguard.yaml` configuration for correctness.
 
 **What's not built yet:**
 - LLM integration (sending diff + docs to Gemini/OpenAI)
@@ -119,7 +120,7 @@ make run       # go run ./cmd/mark-guard format
 Projects and resources I studied while building this:
 
 | Project | What I found |
-|---|---|
+|---|---|---|
 | `golang.org/x/exp/apidiff` | API change detection between Go package versions. Map-keyed symbol comparison. |
 | `go/doc` | Groups methods, consts, vars under parent types. |
 | `go/parser` + `go/ast` | AST parsing without type-checking. |

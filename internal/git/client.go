@@ -67,6 +67,11 @@ func NewClient(dir, baseRef string) (*Client, error) {
 	return c, nil
 }
 
+// RepoRoot returns the absolute path to the repository root.
+func (c *Client) RepoRoot() string {
+	return c.dir
+}
+
 // ChangedGoFiles returns Go files that differ between the base ref and the
 func (c *Client) ChangedGoFiles() ([]ChangedFile, error) {
 	paths, err := c.changedPaths()

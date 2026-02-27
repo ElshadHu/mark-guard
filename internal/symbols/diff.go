@@ -352,7 +352,7 @@ func FormatDiffSummary(diffs []SymbolDiff) string {
 	var buf strings.Builder
 
 	if len(added) > 0 {
-		buf.WriteString("Added\n")
+		buf.WriteString("## Added\n")
 		for i := range added {
 			buf.WriteString("- ")
 			buf.WriteString(added[i].Symbol.Signature)

@@ -110,13 +110,14 @@ func runFormat(opts *FormatOptions) error {
 		return fmt.Errorf("LLM request: %w", err)
 	}
 
-	// Parse response and write back
-	docPaths := make([]string, len(scanResult.Docs))
-	for i := range scanResult.Docs {
-		docPaths[i] = scanResult.Docs[i].Path
+	// Build doc map: path -> content. ParseResponse needs the original content
+	// to verify old_text before writing anything to disk
+	docMap := make(map[string]string, len(scanResult.Docs))
+	for _, d := range scanResult.Docs {
+		docMap[d.Path] = d.Content
 	}
 
-	updates, err := llm.ParseResponse(resp, docPaths)
+	updates, err := llm.ParseResponse(resp, docMap)
 	if err != nil {
 		return fmt.Errorf("parsing LLM response: %w", err)
 	}

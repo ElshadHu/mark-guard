@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ElshadHu/mark-guard/internal/model"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -24,17 +25,9 @@ type LLMConfig struct {
 
 // DocsConfig holds settings for documentation scanning
 type DocsConfig struct {
-	Paths    []string     `yaml:"paths"`
-	Exclude  []string     `yaml:"exclude"`
-	Mappings []DocMapping `yaml:"mappings"`
-}
-
-// DocMapping links doc files to code paths.
-// If any changed code file starts with a Code prefix,
-// the mapped Docs files are included in the LLM context.
-type DocMapping struct {
-	Docs []string `yaml:"docs"`
-	Code []string `yaml:"code"`
+	Paths    []string           `yaml:"paths"`
+	Exclude  []string           `yaml:"exclude"`
+	Mappings []model.DocMapping `yaml:"mappings"`
 }
 
 // defaults returns a Config with sensible default values

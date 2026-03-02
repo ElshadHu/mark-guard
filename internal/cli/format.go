@@ -9,6 +9,7 @@ import (
 	"github.com/ElshadHu/mark-guard/internal/docs"
 	"github.com/ElshadHu/mark-guard/internal/git"
 	"github.com/ElshadHu/mark-guard/internal/llm"
+	"github.com/ElshadHu/mark-guard/internal/model"
 	"github.com/ElshadHu/mark-guard/internal/symbols"
 	"github.com/spf13/cobra"
 )
@@ -70,12 +71,11 @@ func runFormat(opts *FormatOptions) error {
 	fmt.Printf("%d exported API change(s) detected\n", len(allDiffs))
 
 	// Scan docs
-	mappings := bridgeMappings(cfg.Docs.Mappings)
 	scanResult, err := docs.Scan(&docs.ScanOptions{
 		RepoRoot:         gitClient.RepoRoot(),
 		Paths:            cfg.Docs.Paths,
 		Exclude:          cfg.Docs.Exclude,
-		Mappings:         mappings,
+		Mappings:         cfg.Docs.Mappings,
 		ChangedCodePaths: changedCodePaths,
 	})
 	if err != nil {
@@ -96,7 +96,10 @@ func runFormat(opts *FormatOptions) error {
 	}
 
 	// Build prompt
-	docInputs := bridgeDocInputs(scanResult.Docs)
+	docInputs := make([]model.DocInput, len(scanResult.Docs))
+	for i, d := range scanResult.Docs {
+		docInputs[i] = model.DocInput(d)
+	}
 	req := llm.BuildPrompt(diffSummary, docInputs)
 
 	// Call LLM
@@ -167,24 +170,4 @@ func extractAndDiff(files []git.ChangedFile) (diffs []symbols.SymbolDiff, change
 		allDiffs = append(allDiffs, fileDiffs...)
 	}
 	return allDiffs, changedCodePaths
-}
-
-// bridgeMappings converts config.DocMapping to docs.DocMapping
-// These are separate types to avoid config <-> docs circular imports
-func bridgeMappings(cfgMapping []config.DocMapping) []docs.DocMapping {
-	mappings := make([]docs.DocMapping, len(cfgMapping))
-	for i, m := range cfgMapping {
-		mappings[i] = docs.DocMapping{Docs: m.Docs, Code: m.Code}
-	}
-	return mappings
-}
-
-// bridgeDocInputs converts docs.DocFile to llm.DocInput.
-// These are separate types to avoid docs↔llm circular imports.
-func bridgeDocInputs(docFiles []docs.DocFile) []llm.DocInput {
-	inputs := make([]llm.DocInput, len(docFiles))
-	for i, d := range docFiles {
-		inputs[i] = llm.DocInput{Path: d.Path, Content: d.Content}
-	}
-	return inputs
 }

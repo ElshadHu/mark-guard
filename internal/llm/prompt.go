@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/ElshadHu/mark-guard/internal/model"
 )
 
 const systemPrompt = `You are a documentation updater for Go projects. You receive:
@@ -44,14 +46,8 @@ Rules for old_text:
 - Must be long enough to be unique within the file.
 - If the phrase appears more than once, include the surrounding sentence.`
 
-// DocInput represents a single documentation file to include in the prompt
-type DocInput struct {
-	Path    string
-	Content string
-}
-
 // BuildPrompt constructs the chat messages for the LLM request
-func BuildPrompt(diffSummary string, docs []DocInput) *ChatRequest {
+func BuildPrompt(diffSummary string, docs []model.DocInput) *ChatRequest {
 	var userMsg strings.Builder
 
 	// Sanitize and wrap the code diff.

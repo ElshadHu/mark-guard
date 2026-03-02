@@ -6,23 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ElshadHu/mark-guard/internal/model"
 )
-
-// DocFile represents a markdown file found during scanning
-type DocFile struct {
-	// Path is relative to the repo root
-	Path string
-	// Content is the full file content
-	Content string
-}
-
-// DocMapping links doc files to code paths.
-// If any changed code file has a path starting with a Code prefix,
-// the mapped Docs files are included in the scan result.
-type DocMapping struct {
-	Docs []string
-	Code []string
-}
 
 // ScanOptions groups all inputs for the Scan function.
 type ScanOptions struct {
@@ -33,7 +19,7 @@ type ScanOptions struct {
 	// Exclude are relative paths to skip
 	Exclude []string
 	// Mappings link doc files to code paths
-	Mappings []DocMapping
+	Mappings []model.DocMapping
 	// ChangedCodePaths are file paths from git diff
 	ChangedCodePaths []string
 }
@@ -42,7 +28,7 @@ type ScanOptions struct {
 // for token budget estimation.
 type ScanResult struct {
 	// Docs are the selected md files
-	Docs []DocFile
+	Docs []model.DocFile
 	// TotalBytes is the sum of all doc content sizes
 	TotalBytes int
 	// EstimatedTokens is a rough estimate: TotalBytes / 4
@@ -69,7 +55,7 @@ func Scan(opts *ScanOptions) (*ScanResult, error) {
 		return buildResult(allDocs), nil
 	}
 
-	var matched []DocFile
+	var matched []model.DocFile
 	for i := range allDocs {
 		if mappedDocPaths[allDocs[i].Path] {
 			matched = append(matched, allDocs[i])
@@ -86,7 +72,7 @@ func Scan(opts *ScanOptions) (*ScanResult, error) {
 }
 
 // buildResult constructs a ScanResult with token estimation.
-func buildResult(docs []DocFile) *ScanResult {
+func buildResult(docs []model.DocFile) *ScanResult {
 	total := 0
 	for i := range docs {
 		total += len(docs[i].Content)
@@ -100,7 +86,7 @@ func buildResult(docs []DocFile) *ScanResult {
 
 // matchMappings returns the set of doc paths
 // that are mapped to any of the changed code paths.
-func matchMappings(mappings []DocMapping, changedCodePaths []string) map[string]bool {
+func matchMappings(mappings []model.DocMapping, changedCodePaths []string) map[string]bool {
 	result := make(map[string]bool)
 	for i := range mappings {
 		if mappingMatches(mappings[i], changedCodePaths) {
@@ -114,7 +100,7 @@ func matchMappings(mappings []DocMapping, changedCodePaths []string) map[string]
 
 // mappingMatches returns true if any changed code path
 // starts with any of the mapping's code prefixes.
-func mappingMatches(m DocMapping, changedCodePaths []string) bool {
+func mappingMatches(m model.DocMapping, changedCodePaths []string) bool {
 	for _, codePath := range changedCodePaths {
 		for _, prefix := range m.Code {
 			if strings.HasPrefix(codePath, prefix) {
@@ -127,13 +113,13 @@ func mappingMatches(m DocMapping, changedCodePaths []string) bool {
 
 // collectDocs walks the configured paths and reads all .md files,
 // skipping excluded paths.
-func collectDocs(repoRoot string, paths, exclude []string) ([]DocFile, error) {
+func collectDocs(repoRoot string, paths, exclude []string) ([]model.DocFile, error) {
 	excludeSet := make(map[string]bool, len(exclude))
 	for i := range exclude {
 		excludeSet[exclude[i]] = true
 	}
 
-	var docs []DocFile
+	var docs []model.DocFile
 	seen := make(map[string]bool)
 
 	for i := range paths {
@@ -188,7 +174,7 @@ func collectDocs(repoRoot string, paths, exclude []string) ([]DocFile, error) {
 			}
 
 			seen[rel] = true
-			docs = append(docs, DocFile{Path: rel, Content: string(content)})
+			docs = append(docs, model.DocFile{Path: rel, Content: string(content)})
 			return nil
 		})
 		if walkErr != nil {
@@ -201,7 +187,7 @@ func collectDocs(repoRoot string, paths, exclude []string) ([]DocFile, error) {
 
 // readSingleFile reads a single .md file if it passes filters.
 // Returns nil (no error) if the file should be skipped.
-func readSingleFile(absPath, rel string, excludeSet, seen map[string]bool) (*DocFile, error) {
+func readSingleFile(absPath, rel string, excludeSet, seen map[string]bool) (*model.DocFile, error) {
 	if excludeSet[rel] || seen[rel] {
 		return nil, nil
 	}
@@ -215,5 +201,5 @@ func readSingleFile(absPath, rel string, excludeSet, seen map[string]bool) (*Doc
 	}
 
 	seen[rel] = true
-	return &DocFile{Path: rel, Content: string(content)}, nil
+	return &model.DocFile{Path: rel, Content: string(content)}, nil
 }

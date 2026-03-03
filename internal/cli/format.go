@@ -20,6 +20,7 @@ type FormatOptions struct {
 	ConfigPath string
 	MaxTokens  int
 	Write      bool
+	Debug      bool
 }
 
 // newFormatCmd creates and returns the format subcommand
@@ -36,6 +37,7 @@ func newFormatCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.ConfigPath, "config", ".markguard.yaml", "path to config file")
 	cmd.Flags().IntVar(&opts.MaxTokens, "max-tokens", 50000, "abort if estimated tokens exceed this limit")
 	cmd.Flags().BoolVar(&opts.Write, "write", false, "apply changes to doc files (default: dry-run)")
+	cmd.Flags().BoolVar(&opts.Debug, "debug", false, "print diff summary, full prompt, and raw LLM response")
 	return cmd
 }
 
@@ -69,6 +71,10 @@ func runFormat(opts *FormatOptions) error {
 		return nil
 	}
 	fmt.Printf("%d exported API change(s) detected\n", len(allDiffs))
+	if opts.Debug {
+		fmt.Println("\n== Diff Summary ==")
+		fmt.Println(diffSummary)
+	}
 
 	// Scan docs
 	scanResult, err := docs.Scan(&docs.ScanOptions{
@@ -102,6 +108,15 @@ func runFormat(opts *FormatOptions) error {
 	}
 	req := llm.BuildPrompt(diffSummary, docInputs)
 
+	if opts.Debug {
+		fmt.Println("\n== User Prompt (first 500 chars) ==")
+		msg := req.Messages[len(req.Messages)-1].Content
+		if len(msg) > 500 {
+			msg = msg[:500] + "\n...(truncated)"
+		}
+		fmt.Println(msg)
+	}
+
 	// Call LLM
 	fmt.Printf("updating docs via %s...\n", cfg.LLM.Model)
 	client, err := llm.NewClient(cfg.LLM.BaseURL, cfg.LLM.APIKeyEnv, cfg.LLM.Model)
@@ -111,6 +126,13 @@ func runFormat(opts *FormatOptions) error {
 	resp, err := client.Complete(context.Background(), *req)
 	if err != nil {
 		return fmt.Errorf("LLM request: %w", err)
+	}
+
+	if opts.Debug {
+		fmt.Println("\n== Raw LLM Response ==")
+		if len(resp.Choices) > 0 {
+			fmt.Println(resp.Choices[0].Message.Content)
+		}
 	}
 
 	// Build doc map: path -> content. ParseResponse needs the original content

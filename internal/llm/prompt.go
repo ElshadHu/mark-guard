@@ -44,7 +44,15 @@ Allowed action values: "replace" | "insert_after" | "delete"
 Rules for old_text:
 - Must be copied verbatim from the document — no paraphrasing or summarising.
 - Must be long enough to be unique within the file.
-- If the phrase appears more than once, include the surrounding sentence.`
+- If the phrase appears more than once, include the surrounding sentence.
+
+Choosing the right action:
+- "replace"      — the text you want to change already exists verbatim. old_text is the current text, new_text is the replacement.
+- "insert_after" — you are adding something new that does not exist yet. Set old_text to the last existing item that should come before it (e.g. the previous table row, the previous list item, the section heading). Never use "replace" with text that is not already in the file.
+- "delete"       — you want to remove text entirely. Set new_text to "".
+
+Example — adding a new table row after an existing one:
+{"action": "insert_after", "old_text": "| ROLLBACK | done |", "new_text": "| SNAPSHOT | WIP |"}`
 
 // BuildPrompt constructs the chat messages for the LLM request
 func BuildPrompt(diffSummary string, docs []model.DocInput) *ChatRequest {

@@ -1,0 +1,25 @@
+# Copy to .markguard.yaml and adjust for your repo.
+
+llm:
+  # OpenAI-compatible endpoint — change to https://api.openai.com/v1 for OpenAI.
+  base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+  # Name of the env var that holds your API key (the key itself is never stored here).
+  api_key_env: "GEMINI_API_KEY"
+  # Model name as accepted by the provider.
+  model: "gemini-2.5-flash"
+
+docs:
+  # Directories and files mark-guard will scan for markdown docs (relative to repo root).
+  paths:
+    - "docs/"
+    - "README.md"
+
+  # Paths to exclude from scanning.
+  # exclude:
+  #   - "docs/internal/"
+
+  # Explicit doc-to-code mappings. Without this, all docs are sent for every change.
+  # Use mappings on large repos to limit context and reduce token usage.
+  # mappings:
+  #   - code: ["internal/api/"]
+  #     docs: ["docs/api.md"]

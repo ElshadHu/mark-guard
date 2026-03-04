@@ -4,7 +4,7 @@ A CLI tool that keeps your documentation in sync with your Go code.
 
 You change code. You forget to update docs. mark-guard parses the AST of your old code (from git) and your new code (on disk), extracts a semantic diff of exported symbols, and produces a structured summary of what changed in the public API. It then feeds that diff plus your current markdown docs to an LLM and writes the updated docs back to disk.
 
-I built this because I keep forgetting to update docs after code changes. I see the same problem in open source projects all the time. Text diffs are noisy and miss the point. AST-level diffing tells you exactly what changed in the public API, which is exactly what documentation cares about.
+Text diffs are noisy and miss the point. AST-level diffing tells you exactly what changed in the public API — which is exactly what documentation cares about.
 
 ## Status
 
@@ -78,9 +78,9 @@ Create `.markguard.yaml` at your repo root (optional, defaults work without it):
 
 ```yaml
 llm:
-  base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+  base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
   api_key_env: "GEMINI_API_KEY"
-  model: "gemini-2.0-flash"
+  model: "gemini-2.5-flash"
 docs:
   paths:
     - "docs/"
@@ -95,7 +95,7 @@ docs:
 ```
 
 Without `.markguard.yaml`, defaults are:
-- **Provider:** Gemini free tier (`gemini-2.0-flash`)
+- **Provider:** Gemini (`gemini-2.5-flash`)
 - **API key env:** `GEMINI_API_KEY`
 - **Doc paths:** `docs/`, `README.md`
 - **Mappings:** None (sends all docs, fine for small repos)
@@ -122,13 +122,11 @@ make run       # go run ./cmd/mark-guard format
 
 ## References
 
-Projects and resources I studied while building this:
-
-| Project | What I found |
+| Project | What I used it for |
 |---|---|
-| `golang.org/x/exp/apidiff` | API change detection between Go package versions. Map-keyed symbol comparison. |
-| `go/doc` | Groups methods, consts, vars under parent types. |
-| `go/parser` + `go/ast` | AST parsing without type-checking. |
+| `golang.org/x/exp/apidiff` | Reference for map-keyed symbol comparison and API change detection between package versions. |
+| `go/doc` | Grouping methods, consts, and vars under parent types. |
+| `go/parser` + `go/ast` | AST parsing without type-checking (works on raw strings from `git show`). |
 | Cobra (`spf13/cobra`) | Subcommand routing and flag parsing. |
-| `golangci-lint` | Shells out to `git` instead of using a Go git library. |
-| Gemini OpenAI compatibility | https://ai.google.dev/gemini-api/docs/openai |
+| `golangci-lint` | Reference for shelling out to `git` instead of pulling in a Go git library. |
+| Gemini OpenAI compatibility | [ai.google.dev/gemini-api/docs/openai](https://ai.google.dev/gemini-api/docs/openai) |

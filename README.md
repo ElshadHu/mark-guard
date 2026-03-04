@@ -23,18 +23,12 @@ End-to-end pipeline works. Hardening in progress (see docs/day8.md for the impro
 - Detects changed `.go` files via git
 - Parses old and new Go source, extracts exported symbols
 - Diffs symbol sets: added, removed, modified (down to parameters, fields, methods)
-- Produces human-readable diff summaries
+- Produces compact diff summaries (reduced token usage for LLM)
 - Scans and selects relevant markdown docs via config-based mapping
 - Loads config from `.markguard.yaml` with sensible defaults
-- Verifies the `.markguard.yaml` configuration for correctness
+- Validates LLM output before writing (content-loss guard)
+- Dry-run by default, `--write` to apply, `--force` to bypass safety checks
 - Sends diff + docs to LLM (Gemini/OpenAI compatible) and writes updates back
-
-**What needs hardening:**
-- Dry-run mode and user confirmation before writing
-- JSON structured output instead of full-file replacement
-- Prompt injection mitigation
-- Pre-write validation (content-loss guard)
-- Token optimization for large repos
 
 ## How It Works
 
@@ -44,7 +38,44 @@ End-to-end pipeline works. Hardening in progress (see docs/day8.md for the impro
 4. Diff the two symbol sets: what was added, removed, or modified (down to individual parameters, fields, methods)
 5. Scan configured doc paths, select relevant markdown files via config-based mapping
 6. Build prompt with diff summary + doc content, send to LLM
-7. Parse LLM response and write updated docs back to disk
+7. Validate LLM output (reject empty results, block >50% content loss)
+8. Write updated docs back to disk
+
+## Usage
+
+```bash
+# dry run — see what would change (default)
+mark-guard format
+
+# apply changes to doc files
+mark-guard format --write
+
+# see the full diff summary, prompt, and raw LLM response
+mark-guard format --debug
+
+# bypass content-loss safety checks
+mark-guard format --write --force
+
+# compare against a specific git ref
+mark-guard format --base HEAD~3
+
+# use a custom config file
+mark-guard format --config path/to/.markguard.yaml
+
+# abort if token estimate exceeds a limit
+mark-guard format --max-tokens 30000
+```
+
+### Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--base` | `HEAD` | Git ref to compare against |
+| `--config` | `.markguard.yaml` | Path to config file |
+| `--debug` | `false` | Print diff summary, prompt, and raw LLM response |
+| `--force` | `false` | Bypass content-loss safety checks |
+| `--max-tokens` | `50000` | Abort if estimated tokens exceed this limit |
+| `--write` | `false` | Apply changes to doc files (dry-run by default) |
 
 ## Key Design Decisions
 
@@ -130,3 +161,9 @@ make run       # go run ./cmd/mark-guard format
 | Cobra (`spf13/cobra`) | Subcommand routing and flag parsing. |
 | `golangci-lint` | Reference for shelling out to `git` instead of pulling in a Go git library. |
 | Gemini OpenAI compatibility | [ai.google.dev/gemini-api/docs/openai](https://ai.google.dev/gemini-api/docs/openai) |
+
+## What's Next
+
+- Support for other languages (Python, TypeScript, Rust) — each needs its own parser
+- Per-edit validation before applying (currently per-file only)
+- Configurable content-loss thresholds via `.markguard.yaml`

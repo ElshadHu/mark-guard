@@ -23,6 +23,7 @@ type FormatOptions struct {
 	MaxTokens  int
 	Write      bool
 	Debug      bool
+	Force      bool
 }
 
 // newFormatCmd creates and returns the format subcommand
@@ -40,6 +41,7 @@ func newFormatCmd() *cobra.Command {
 	cmd.Flags().IntVar(&opts.MaxTokens, "max-tokens", 50000, "abort if estimated tokens exceed this limit")
 	cmd.Flags().BoolVar(&opts.Write, "write", false, "apply changes to doc files (default: dry-run)")
 	cmd.Flags().BoolVar(&opts.Debug, "debug", false, "print diff summary, full prompt, and raw LLM response")
+	cmd.Flags().BoolVar(&opts.Force, "force", false, "bypass content-loss safety checks")
 	return cmd
 }
 
@@ -103,10 +105,12 @@ func runFormat(opts *FormatOptions) error {
 			scanResult.EstimatedTokens, opts.MaxTokens)
 	}
 
-	// Build doc inputs
+	// Build doc inputs and capture originals for validation
 	docInputs := make([]model.DocInput, len(scanResult.Docs))
-	for i, d := range scanResult.Docs {
-		docInputs[i] = model.DocInput(d)
+	originals := make(map[string]string, len(scanResult.Docs))
+	for i := range scanResult.Docs {
+		docInputs[i] = model.DocInput(scanResult.Docs[i])
+		originals[scanResult.Docs[i].Path] = scanResult.Docs[i].Content
 	}
 
 	fmt.Printf("updating %d doc(s) via %s (parallel)...\n", len(docInputs), cfg.LLM.Model)
@@ -166,21 +170,49 @@ func runFormat(opts *FormatOptions) error {
 		return err
 	}
 
+	// Validate updates unless --force is set
+	blocked := make(map[string]bool)
+	if !opts.Force {
+		issues := docs.ValidateUpdates(originals, allUpdates)
+		for i := range issues {
+			if issues[i].Rejected {
+				fmt.Fprintf(os.Stderr, "✗ %s: %s — blocked\n", issues[i].File, issues[i].Message)
+				blocked[issues[i].File] = true
+			} else {
+				fmt.Fprintf(os.Stderr, "⚠ %s: %s\n", issues[i].File, issues[i].Message)
+			}
+		}
+	}
+
 	if !opts.Write {
 		fmt.Println("\n== Dry Run (pass --write to apply) ==")
 		for path := range allUpdates {
-			fmt.Printf("  would update: %s\n", path)
+			if blocked[path] {
+				fmt.Printf("  would block: %s\n", path)
+			} else {
+				fmt.Printf("  would update: %s\n", path)
+			}
 		}
 		return nil
 	}
 
 	repoRoot := gitClient.RepoRoot()
+	var wrote, skipped int
 	for path, content := range allUpdates {
+		if blocked[path] {
+			skipped++
+			continue
+		}
 		if err := docs.WriteUpdate(repoRoot, path, content); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: %v\n", err)
 			continue
 		}
 		fmt.Printf("✓ updated %s\n", path)
+		wrote++
+	}
+
+	if skipped > 0 {
+		fmt.Printf("\n%d file(s) updated, %d blocked. Use --force to override.\n", wrote, skipped)
 	}
 
 	return nil

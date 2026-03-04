@@ -388,3 +388,24 @@ func FormatDiffSummary(diffs []SymbolDiff) string {
 
 	return strings.TrimRight(buf.String(), "\n")
 }
+
+// FormatDiffSummaryCompact is a terse version of FormatDiffSummary.
+// It omits doc comments and per-field descriptions to reduce LLM input tokens.
+func FormatDiffSummaryCompact(diffs []SymbolDiff) string {
+	if len(diffs) == 0 {
+		return "No changes to exported symbols"
+	}
+	var sb strings.Builder
+	for i := range diffs {
+		switch diffs[i].Kind {
+		case ChangeAdded:
+			fmt.Fprintf(&sb, "+ ADDED   %s: %s\n", diffs[i].Name, diffs[i].Symbol.Signature)
+		case ChangeRemoved:
+			fmt.Fprintf(&sb, "- REMOVED %s: %s\n", diffs[i].Name, diffs[i].OldSignature)
+		case ChangeModified:
+			fmt.Fprintf(&sb, "~ CHANGED %s\n  was: %s\n  now: %s\n",
+				diffs[i].Name, diffs[i].OldSignature, diffs[i].Symbol.Signature)
+		}
+	}
+	return strings.TrimSpace(sb.String())
+}

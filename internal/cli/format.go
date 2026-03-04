@@ -69,15 +69,16 @@ func runFormat(opts *FormatOptions) error {
 
 	// Extract symbols and diff
 	allDiffs, changedCodePaths := extractAndDiff(files)
-	diffSummary := symbols.FormatDiffSummary(allDiffs)
+	diffSummary := symbols.FormatDiffSummaryCompact(allDiffs)
 	if diffSummary == "No changes to exported symbols" {
 		fmt.Println("Go files changed, but no exported API changes detected")
 		return nil
 	}
 	fmt.Printf("%d exported API change(s) detected\n", len(allDiffs))
 	if opts.Debug {
+		// Verbose version for humans — shows per-field changes
 		fmt.Println("\n== Diff Summary ==")
-		fmt.Println(diffSummary)
+		fmt.Println(symbols.FormatDiffSummary(allDiffs))
 	}
 
 	// Scan docs

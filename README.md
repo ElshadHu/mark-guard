@@ -4,11 +4,11 @@ A CLI tool that keeps your documentation in sync with your Go code.
 
 You change code. You forget to update docs. mark-guard parses the AST of your old code (from git) and your new code (on disk), extracts a semantic diff of exported symbols, and produces a structured summary of what changed in the public API. It then feeds that diff plus your current markdown docs to an LLM and writes the updated docs back to disk.
 
-Text diffs are noisy and miss the point. AST-level diffing tells you exactly what changed in the public API — which is exactly what documentation cares about.
+Text diffs are noisy and miss the point. AST-level diffing tells you exactly what changed in the public API which is exactly what documentation cares about.
 
 ## Status
 
-End-to-end pipeline works. Hardening in progress (see docs/day8.md for the improvement plan).
+End-to-end pipeline works. I might change the prompt section with detailed `XML` and precise prompt. Other parts depend while I test other codbases I will figure out more
 
 | Phase | Description | Status |
 |---|---|---|
@@ -140,17 +140,6 @@ make lint      # golangci-lint run ./...
 make run       # go run ./cmd/mark-guard format
 ```
 
-## Roadmap
-
-| Phase | What | What I Did | Status |
-|---|---|---|---|
-| 1-2 | Skeleton + Git | Cobra CLI, config loader with `yaml.v3`, git client that detects changed `.go` files and reads old content via `git show`. | Done |
-| 3 | Symbol Extraction | Parser using `go/parser` that extracts exported functions, methods, structs, interfaces, consts, vars with structured params/fields. | Done |
-| 4 | Symbol Diffing | Map-keyed comparison, three-pass detection (added/removed/modified), per-field change detection, deterministic sorted output, human-readable summary formatter. | Done |
-| 5 | Doc Scanning | Scanner that walks configured paths, reads `.md` files, filters by config-based doc-to-code mapping, token estimation. | Done |
-| 6 | LLM Integration | OpenAI-compatible client with retry/backoff, prompt builder, response parser, token budget check. | Done |
-| 7 | End-to-End Wiring | `format` command runs the full pipeline: git diff, symbol extraction, doc scan, LLM call, write updates. | Done |
-
 ## References
 
 | Project | What I used it for |
@@ -164,6 +153,6 @@ make run       # go run ./cmd/mark-guard format
 
 ## What's Next
 
-- Support for other languages (Python, TypeScript, Rust) — each needs its own parser
+- Support for other languages (Python, TypeScript, Rust) each needs its own parser
 - Per-edit validation before applying (currently per-file only)
 - Configurable content-loss thresholds via `.markguard.yaml`

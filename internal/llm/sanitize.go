@@ -40,3 +40,18 @@ func WrapScale(scale string) string {
 func WrapRules(rules string) string {
 	return "<RULES>\n" + rules + "\n</RULES>"
 }
+
+// WrapTone wraps the tone guidelines in <TONE>
+func WrapTone(tone string) string {
+	return "<TONE>\n" + tone + "\n</TONE>"
+}
+
+// WrapEdgeCases wraps the edge cases in <EDGE_CASES>
+func WrapEdgeCases(ec string) string {
+	return "<EDGE_CASES>\n" + ec + "\n</EDGE_CASES>"
+}
+
+// WrapExamples wraps the few-shot examples in <EXAMPLES>
+func WrapExamples(examples string) string {
+	return "<EXAMPLES>\n" + examples + "\n</EXAMPLES>"
+}

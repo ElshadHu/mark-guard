@@ -3,10 +3,12 @@ package llm
 
 import "regexp"
 
-// StripHTMLComments removes all comments from markdown
+// htmlCommentRe matches HTML comments in markdown — compiled once at package level.
+var htmlCommentRe = regexp.MustCompile(`<!--[\s\S]*?-->`)
+
+// StripHTMLComments removes all HTML comments from markdown
 func StripHTMLComments(md string) string {
-	re := regexp.MustCompile(`<!--[\s\S]*?-->`)
-	return re.ReplaceAllString(md, "")
+	return htmlCommentRe.ReplaceAllString(md, "")
 }
 
 // WrapCodeDiff wraps the code diff in <CODE_CHANGES> tags
@@ -17,4 +19,24 @@ func WrapCodeDiff(diff string) string {
 // WrapDoc wraps the doc content in <DOCUMENT path="..."> tags
 func WrapDoc(path, content string) string {
 	return `<DOCUMENT path="` + path + `">` + "\n" + content + "\n</DOCUMENT>"
+}
+
+// WrapRole wraps the role in <ROLE>
+func WrapRole(role string) string {
+	return "<ROLE>\n" + role + "\n</ROLE>"
+}
+
+// WrapContext wraps the context in <CONTEXT>
+func WrapContext(ctx string) string {
+	return "<CONTEXT>\n" + ctx + "\n</CONTEXT>"
+}
+
+// WrapScale wraps the scale in <SCALE>
+func WrapScale(scale string) string {
+	return "<SCALE>\n" + scale + "\n</SCALE>"
+}
+
+// WrapRules wraps the rules in <RULES>
+func WrapRules(rules string) string {
+	return "<RULES>\n" + rules + "\n</RULES>"
 }

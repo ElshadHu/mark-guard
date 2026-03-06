@@ -30,3 +30,6 @@ go.work.sum
 bin/
 
 .markguard.yaml
+
+# binary files for dry building
+dist/

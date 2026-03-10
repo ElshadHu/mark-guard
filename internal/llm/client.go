@@ -16,6 +16,14 @@ import (
 	"time"
 )
 
+// Completer is the interface for sending chat completion requests.
+type Completer interface {
+	Complete(ctx context.Context, req ChatRequest) (*ChatResponse, error)
+}
+
+// Compile-time check: *Client implements Completer.
+var _ Completer = (*Client)(nil)
+
 // ChatRequest is the request body for /v1/chat/completions
 type ChatRequest struct {
 	Model       string        `json:"model"`

@@ -121,53 +121,8 @@ func runFormat(opts *FormatOptions) error {
 		return fmt.Errorf("init LLM client: %w", err)
 	}
 
-	g, ctx := errgroup.WithContext(context.Background())
-	var mu sync.Mutex
-	allUpdates := make(map[string]string)
-
-	for i := range docInputs {
-		i := i
-		g.Go(func() error {
-			req := llm.BuildPrompt(diffSummary, []model.DocInput{docInputs[i]})
-
-			if opts.Debug {
-				fmt.Printf("\n== Prompt for %s (first 500 chars) ==\n", docInputs[i].Path)
-				msg := req.Messages[len(req.Messages)-1].Content
-				if len(msg) > 500 {
-					msg = msg[:500] + "\n...(truncated)"
-				}
-				fmt.Println(msg)
-			}
-
-			resp, err := client.Complete(ctx, *req)
-			if err != nil {
-				return fmt.Errorf("LLM request for %s: %w", docInputs[i].Path, err)
-			}
-
-			if opts.Debug {
-				fmt.Printf("\n== Raw LLM Response for %s ==\n", docInputs[i].Path)
-				if len(resp.Choices) > 0 {
-					fmt.Println(resp.Choices[0].Message.Content)
-				}
-			}
-
-			updates, err := llm.ParseResponse(resp, map[string]string{
-				docInputs[i].Path: docInputs[i].Content,
-			})
-			if err != nil {
-				return fmt.Errorf("parsing response for %s: %w", docInputs[i].Path, err)
-			}
-
-			mu.Lock()
-			for k, v := range updates {
-				allUpdates[k] = v
-			}
-			mu.Unlock()
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
+	allUpdates, err := updateDocs(context.Background(), client, docInputs, diffSummary, opts.Debug)
+	if err != nil {
 		return err
 	}
 
@@ -238,4 +193,58 @@ func extractAndDiff(files []git.ChangedFile) (diffs []symbols.SymbolDiff, change
 		allDiffs = append(allDiffs, fileDiffs...)
 	}
 	return allDiffs, changedCodePaths
+}
+
+// updateDocs calls the LLM for each doc and returns updated contents
+func updateDocs(
+	ctx context.Context,
+	client llm.Completer,
+	docInputs []model.DocInput,
+	diffSummary string,
+	debug bool,
+) (map[string]string, error) {
+	g, ctx := errgroup.WithContext(ctx)
+	var mu sync.Mutex
+	allUpdates := make(map[string]string)
+
+	for i := range docInputs {
+		i := i
+		g.Go(func() error {
+			req := llm.BuildPrompt(diffSummary, []model.DocInput{docInputs[i]})
+			if debug {
+				fmt.Printf("\n== Prompt for %s (first 500 chars) ==\n", docInputs[i].Path)
+				msg := req.Messages[len(req.Messages)-1].Content
+				if len(msg) > 500 {
+					msg = msg[:500] + "\n...(truncated)"
+				}
+				fmt.Println(msg)
+			}
+			resp, err := client.Complete(ctx, *req)
+			if err != nil {
+				return fmt.Errorf("LLM request for %s: %w", docInputs[i].Path, err)
+			}
+			if debug {
+				fmt.Printf("\n== Raw LLM Response for %s ==\n", docInputs[i].Path)
+				if len(resp.Choices) > 0 {
+					fmt.Println(resp.Choices[0].Message.Content)
+				}
+			}
+			updates, err := llm.ParseResponse(resp, map[string]string{
+				docInputs[i].Path: docInputs[i].Content,
+			})
+			if err != nil {
+				return fmt.Errorf("parsing response for %s: %w", docInputs[i].Path, err)
+			}
+			mu.Lock()
+			for k, v := range updates {
+				allUpdates[k] = v
+			}
+			mu.Unlock()
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return allUpdates, nil
 }

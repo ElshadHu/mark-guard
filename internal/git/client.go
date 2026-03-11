@@ -11,7 +11,9 @@ import (
 	"strings"
 )
 
-// Git subcommands and flags used by this package.
+// errPathTraversal is returned when a path resolves outside the repo root.
+var errPathTraversal = errors.New("path traverses outside repository root")
+
 const (
 	gitCmdDiff     = "diff"
 	gitCmdLsFiles  = "ls-files"
@@ -28,15 +30,13 @@ const (
 
 // Client interacts with git in a specific repository.
 type Client struct {
-	// repo root (resolved via git rev-parse)
 	dir     string
 	baseRef string
 }
 
 // ChangedFile represents a Go file that differs from the base ref.
 type ChangedFile struct {
-	// relative to repo root
-	Path       string
+	Path       string // relative to repo root
 	OldContent string
 	NewContent string
 }
@@ -51,9 +51,9 @@ func NewClient(dir, baseRef string) (*Client, error) {
 		dir = wd
 	}
 
-	absDir, err := filepath.Abs(dir)
+	absDir, err := filepath.EvalSymlinks(dir)
 	if err != nil {
-		return nil, fmt.Errorf("resolve absolute path: %w", err)
+		return nil, fmt.Errorf("resolve path: %w", err)
 	}
 
 	c := &Client{dir: absDir, baseRef: baseRef}
@@ -72,7 +72,7 @@ func (c *Client) RepoRoot() string {
 	return c.dir
 }
 
-// ChangedGoFiles returns Go files that differ between the base ref and the
+// ChangedGoFiles returns Go files that differ between the base ref and the working tree.
 func (c *Client) ChangedGoFiles() ([]ChangedFile, error) {
 	paths, err := c.changedPaths()
 	if err != nil {
@@ -91,7 +91,7 @@ func (c *Client) ChangedGoFiles() ([]ChangedFile, error) {
 	return files, nil
 }
 
-// changedPaths returns a deduplicated, sorted list of .go file paths that
+// changedPaths returns a deduplicated, sorted list of changed .go file paths.
 func (c *Client) changedPaths() ([]string, error) {
 	diffOutput, err := c.runGit(gitCmdDiff, gitFlagNameOnly, c.baseRef, "--", gitPathFilterGo)
 	if err != nil {
@@ -130,39 +130,63 @@ func (c *Client) changedPaths() ([]string, error) {
 	return paths, nil
 }
 
-// buildChangedFile constructs a ChangedFile by reading old content from git
 func (c *Client) buildChangedFile(path string) (ChangedFile, error) {
 	cf := ChangedFile{Path: path}
-	cf.OldContent = c.readFileAtRef(path)
-	cf.NewContent = c.readFileOnDisk(path)
+
+	old, err := c.readFileAtRef(path)
+	if err != nil {
+		return ChangedFile{}, fmt.Errorf("read %s at %s: %w", path, c.baseRef, err)
+	}
+	cf.OldContent = old
+
+	cur, err := c.readFileOnDisk(path)
+	if err != nil {
+		return ChangedFile{}, fmt.Errorf("read %s on disk: %w", path, err)
+	}
+	cf.NewContent = cur
+
 	return cf, nil
 }
 
-// readFileAtRef returns the file content at the base ref.
-// Returns empty string if the file does not exist at that ref (new file).
-func (c *Client) readFileAtRef(path string) string {
+// readFileAtRef returns file content at the base ref, or "" for new files.
+func (c *Client) readFileAtRef(path string) (string, error) {
 	content, err := c.runGit(gitCmdShow, c.baseRef+":"+path)
-	if err != nil {
-		// File doesn't exist at base ref
-		return ""
+	if err == nil {
+		return content, nil
 	}
-	return content
+	if strings.Contains(err.Error(), "exit code 128") {
+		return "", nil
+	}
+	return "", err
 }
 
-// readFileOnDisk returns the file content on the working tree.
-// Returns empty string if the file does not exist (deleted file)
-func (c *Client) readFileOnDisk(path string) string {
-	absPath := filepath.Join(c.dir, path)
+// readFileOnDisk returns file content from the working tree, or "" for deleted files.
+func (c *Client) readFileOnDisk(path string) (string, error) {
+	absPath, err := c.safePath(path)
+	if err != nil {
+		return "", err
+	}
 	data, err := os.ReadFile(absPath)
 	if err != nil {
-		// File doesn't exist on disk
-		return ""
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", err
 	}
-	return string(data)
+	return string(data), nil
 }
 
-// runGit runs a git command with the given arguments in the client's
-// repository directory. Returns stdout with trailing newlines trimmed.
+// safePath validates that path stays within c.dir after joining.
+func (c *Client) safePath(path string) (string, error) {
+	joined := filepath.Join(c.dir, path)
+	cleaned := filepath.Clean(joined)
+	if !strings.HasPrefix(cleaned, c.dir+string(filepath.Separator)) && cleaned != c.dir {
+		return "", fmt.Errorf("%w: %s", errPathTraversal, path)
+	}
+	return cleaned, nil
+}
+
+// runGit runs a git command and returns stdout with trailing newlines trimmed.
 func (c *Client) runGit(args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = c.dir

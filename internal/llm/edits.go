@@ -76,6 +76,14 @@ func ApplyEdits(docs map[string]string, edits []Edit) (map[string]string, []erro
 				errs = append(errs, fmt.Errorf("%s: anchor not found verbatim: %q", e.File, e.OldText))
 				continue
 			}
+			// if new_text content already exists in the file,
+			// skip the insert to avoid duplicates.
+			if strings.Contains(content, strings.TrimSpace(e.NewText)) {
+				errs = append(errs, fmt.Errorf(
+					"%s: insert_after skipped - new_text already present (possible duplicate from rename): %q",
+					e.File, truncateStr(e.NewText, 80)))
+				continue
+			}
 			result[e.File] = strings.Replace(content, e.OldText, e.OldText+"\n"+e.NewText, 1)
 
 		default:
@@ -83,4 +91,11 @@ func ApplyEdits(docs map[string]string, edits []Edit) (map[string]string, []erro
 		}
 	}
 	return result, errs
+}
+
+func truncateStr(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }

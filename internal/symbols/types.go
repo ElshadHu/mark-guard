@@ -90,6 +90,7 @@ const (
 	ChangeAdded ChangeKind = iota
 	ChangeRemoved
 	ChangeModified
+	ChangeRenamed
 )
 
 // ChangeToString returns a readable label for the change kind
@@ -101,6 +102,8 @@ func (c ChangeKind) ChangeToString() string {
 		return "removed"
 	case ChangeModified:
 		return "modified"
+	case ChangeRenamed:
+		return "renamed"
 	default:
 		return "unknown"
 	}
@@ -115,7 +118,9 @@ type FieldChange struct {
 type SymbolDiff struct {
 	// Name is the symbol identifier
 	Name string
-	Kind ChangeKind
+	// set only for ChangeRenamed
+	OldName string
+	Kind    ChangeKind
 	// Symbol holds the symbol data
 	Symbol       Symbol
 	OldSignature string

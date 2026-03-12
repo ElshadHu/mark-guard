@@ -54,6 +54,11 @@ func Diff(old, cur []Symbol) []SymbolDiff {
 		}
 	}
 
+	// Pass 4: detect renames
+	if renamed := detectRenames(diffs); len(renamed) > 0 {
+		diffs = renamed
+	}
+
 	// Sort for deterministic output:
 	// added first, then removed, then modified
 	// within each group, sort alphabetically by name
@@ -329,6 +334,100 @@ func formatParamList(params []Param) string {
 	return strings.Join(parts, ", ")
 }
 
+// detectRenames scans for removed+added pairs that like renames
+func detectRenames(diffs []SymbolDiff) []SymbolDiff {
+	var added, removed []int
+	for i := range diffs {
+		switch diffs[i].Kind {
+		case ChangeAdded:
+			added = append(added, i)
+		case ChangeRemoved:
+			removed = append(removed, i)
+		}
+	}
+	if len(added) == 0 || len(removed) == 0 {
+		return nil // nothing to pair
+	}
+	pairedAdd := map[int]bool{}
+	pairedRem := map[int]bool{}
+	var renamedDiffs []SymbolDiff
+
+	for _, ri := range removed {
+		for _, ai := range added {
+			if pairedAdd[ai] {
+				continue
+			}
+			if isRenamePair(diffs[ri].Symbol, diffs[ai].Symbol) {
+				renamedDiffs = append(renamedDiffs, SymbolDiff{
+					Name:         diffs[ai].Name,
+					OldName:      diffs[ri].Name,
+					Kind:         ChangeRenamed,
+					Symbol:       diffs[ai].Symbol,
+					OldSignature: diffs[ri].OldSignature,
+				})
+				pairedAdd[ai] = true
+				pairedRem[ri] = true
+				break
+			}
+		}
+	}
+	if len(renamedDiffs) == 0 {
+		return nil
+	}
+	// rebuild keep unpaired diffs, append renames
+	var result []SymbolDiff
+	for i := range diffs {
+		if !pairedAdd[i] && !pairedRem[i] {
+			result = append(result, diffs[i])
+		}
+	}
+	result = append(result, renamedDiffs...)
+	return result
+}
+
+// isRenamePair returns true if two symbols look like the same declaration
+func isRenamePair(old, cur Symbol) bool {
+	if old.Kind != cur.Kind {
+		return false
+	}
+	if old.Recv != cur.Recv {
+		return false
+	}
+	if !paramsEqual(old.Params, cur.Params) {
+		return false
+	}
+	if !paramsEqual(old.Returns, cur.Returns) {
+		return false
+	}
+	if !fieldsEqual(old.Fields, cur.Fields) {
+		return false
+	}
+	return true
+}
+
+func paramsEqual(a, b []Param) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Type != b[i].Type {
+			return false
+		}
+	}
+	return true
+}
+func fieldsEqual(a, b []Field) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Name != b[i].Name || a[i].Type != b[i].Type {
+			return false
+		}
+	}
+	return true
+}
+
 // FormatDiffSummary renders a list of symbol diffs as a  readable summary
 // This output feeds directly into the LLM prompt
 func FormatDiffSummary(diffs []SymbolDiff) string {
@@ -336,7 +435,7 @@ func FormatDiffSummary(diffs []SymbolDiff) string {
 		return "No changes to exported symbols"
 	}
 
-	var added, removed, modified []SymbolDiff
+	var added, removed, modified, renamed []SymbolDiff
 
 	for i := range diffs {
 		switch diffs[i].Kind {
@@ -346,6 +445,8 @@ func FormatDiffSummary(diffs []SymbolDiff) string {
 			removed = append(removed, diffs[i])
 		case ChangeModified:
 			modified = append(modified, diffs[i])
+		case ChangeRenamed:
+			renamed = append(renamed, diffs[i])
 		}
 	}
 
@@ -386,6 +487,14 @@ func FormatDiffSummary(diffs []SymbolDiff) string {
 		buf.WriteString("\n")
 	}
 
+	if len(renamed) > 0 {
+		buf.WriteString("## Renamed\n")
+		for i := range renamed {
+			fmt.Fprintf(&buf, "- %s -> %s: %s\n", renamed[i].OldName, renamed[i].Name, renamed[i].Symbol.Signature)
+		}
+		buf.WriteString("\n")
+	}
+
 	return strings.TrimRight(buf.String(), "\n")
 }
 
@@ -405,6 +514,9 @@ func FormatDiffSummaryCompact(diffs []SymbolDiff) string {
 		case ChangeModified:
 			fmt.Fprintf(&sb, "~ CHANGED %s\n  was: %s\n  now: %s\n",
 				diffs[i].Name, diffs[i].OldSignature, diffs[i].Symbol.Signature)
+		case ChangeRenamed:
+			fmt.Fprintf(&sb, "→ RENAMED %s → %s: %s\n",
+				diffs[i].OldName, diffs[i].Name, diffs[i].Symbol.Signature)
 		}
 	}
 	return strings.TrimSpace(sb.String())

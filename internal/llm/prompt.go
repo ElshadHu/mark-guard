@@ -85,9 +85,10 @@ const toneText = `- Use neutral, technical language. No exclamation marks or cel
 // edgeCasesText handles scenarios the LLM might guess wrong on
 const edgeCasesText = `Handle these scenarios explicitly:
 
-1. RENAMED SYMBOL: If a symbol appears in both "removed" and "added"
-   with a similar signature, treat it as a rename. Update references,
-   do not delete the old section entirely.
+1. RENAMED SYMBOL: When the diff shows "→ RENAMED OldName → NewName",
+   emit a SINGLE "replace" edit that changes the old name to the new name
+   in the existing section. Do NOT use "insert_after" to add a new section.
+   Do NOT leave the old section untouched. One "replace" edit, that is all.
 
 2. DEPRECATION: If a removed symbol's doc mentions "deprecated",
    update the deprecation notice rather than deleting.
@@ -163,6 +164,26 @@ const examplesText = `<EXAMPLE name="function_signature_change">
     "new_text": "### ~~OldClient~~ (Removed)\n> **Removed** in this version. Use NewClient instead.",
     "reason": "Symbol no longer exists in codebase",
     "category": "removed_symbol",
+    "confidence": "high"
+  }
+]}
+</OUTPUT>
+</EXAMPLE>
+
+<EXAMPLE name="symbol_renamed">
+<INPUT>
+→ RENAMED OldClient → NewClient: func NewClient(url string) *Client
+</INPUT>
+<OUTPUT>
+{"edits": [
+  {
+    "file": "docs/api.md",
+    "section": "### OldClient",
+    "action": "replace",
+    "old_text": "### OldClient\n\nCreates a legacy client.",
+    "new_text": "### NewClient\n\nCreates a client.",
+    "reason": "OldClient was renamed to NewClient",
+    "category": "signature_change",
     "confidence": "high"
   }
 ]}

@@ -54,6 +54,9 @@ func ask(sc *bufio.Scanner, w io.Writer, question, fallback string) (string, err
 		}
 	}
 	if !sc.Scan() {
+		if err := sc.Err(); err != nil {
+			return "", fmt.Errorf("reading input: %w", err)
+		}
 		return fallback, nil // EOF or error - use default
 	}
 	ans := strings.TrimSpace(sc.Text())
@@ -101,13 +104,24 @@ func promptProvider(sc *bufio.Scanner, w io.Writer) (initConfig, error) {
 	if err != nil {
 		return initConfig{}, err
 	}
+	if strings.TrimSpace(baseURL) == "" {
+		return initConfig{}, fmt.Errorf("base URL is required for a custom provider")
+	}
+
 	apiKeyEnv, err := ask(sc, w, "Env var holding API key", "")
 	if err != nil {
 		return initConfig{}, err
 	}
+	if strings.TrimSpace(apiKeyEnv) == "" {
+		return initConfig{}, fmt.Errorf("env var name for API key is required")
+	}
+
 	model, err := ask(sc, w, "Model name", "")
 	if err != nil {
 		return initConfig{}, err
+	}
+	if strings.TrimSpace(model) == "" {
+		return initConfig{}, fmt.Errorf("model name is required for a custom provider")
 	}
 	return initConfig{
 		BaseURL:   baseURL,
@@ -225,6 +239,6 @@ func newInitCmd() *cobra.Command {
 			return runConfigInit(configPath, os.Stdin, os.Stdout)
 		},
 	}
-	cmd.Flags().StringVar(&configPath, "config", ".markguard.yaml", "output path")
+	cmd.Flags().StringVar(&configPath, "output", ".markguard.yaml", "output path")
 	return cmd
 }

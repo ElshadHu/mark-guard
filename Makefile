@@ -1,4 +1,4 @@
-.PHONY: build run lint fmt clean test test-v cover vet check
+.PHONY: build run run-init lint fmt clean test test-v cover vet check
 
 BINARY=mark-guard
 
@@ -6,7 +6,10 @@ build:
 	go build -o bin/$(BINARY) ./cmd/mark-guard
 
 run:
-	go run ./cmd/mark-guard format $(ARGS)
+	go run ./cmd/mark-guard $(ARGS)
+
+run-init:
+	go run ./cmd/mark-guard init $(ARGS)
 
 test:
 	@if find . -name '*_test.go' | grep -q .; then \

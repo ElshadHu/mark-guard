@@ -6,7 +6,7 @@ build:
 	go build -o bin/$(BINARY) ./cmd/mark-guard
 
 run:
-	go run ./cmd/mark-guard $(ARGS)
+	go run ./cmd/mark-guard $(if $(ARGS),$(ARGS),format)
 
 run-init:
 	go run ./cmd/mark-guard init $(ARGS)

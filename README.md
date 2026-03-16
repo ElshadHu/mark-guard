@@ -77,6 +77,43 @@ mark-guard format --max-tokens 30000
 | `--max-tokens` | `50000` | Abort if estimated tokens exceed this limit |
 | `--write` | `false` | Apply changes to doc files (dry-run by default) |
 
+## Docker
+
+Run mark-guard without installing Go:
+
+```bash
+docker pull ghcr.io/elshadhu/mark-guard:latest
+```
+
+Run it against your repo:
+
+```bash
+# dry run - see what would change
+docker run --rm \
+  -v "$(pwd):/repo" \
+  -w /repo \
+  -e GEMINI_API_KEY="$GEMINI_API_KEY" \
+  ghcr.io/elshadhu/mark-guard:latest format
+
+# apply changes
+docker run --rm \
+  -v "$(pwd):/repo" \
+  -w /repo \
+  -e GEMINI_API_KEY="$GEMINI_API_KEY" \
+  ghcr.io/elshadhu/mark-guard:latest format --write
+
+# check version
+docker run --rm ghcr.io/elshadhu/mark-guard:latest version
+```
+
+`-v "$(pwd):/repo"` mounts your repo so mark-guard can see your code, docs, and `.git` history.
+
+You can pin to a specific version instead of `latest`:
+
+```bash
+docker pull ghcr.io/elshadhu/mark-guard:1.2.3
+```
+
 ## Key Design Decisions
 
 | Decision | Choice | Why |

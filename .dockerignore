@@ -1,0 +1,10 @@
+.git
+bin
+dist
+.github
+docs
+*.md
+.goreleaser.yaml
+.golangci.yml
+.markguard.yaml
+.markguard.yaml.example

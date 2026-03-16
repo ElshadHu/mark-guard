@@ -40,17 +40,19 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/elshadhu/mark-guard
           tags: | 
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=raw,value=latest
+      - name: Normalize version (strip leading v)
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
       - name: Build and push
         uses: docker/build-and-push-action@v6
         with:
           context: .
           push: true
-          build-args: VERSION=${{ github.ref_name }}
+          build-args: VERSION=${{ env.VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

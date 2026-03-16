@@ -16,6 +16,7 @@ func NewRootCmd() *cobra.Command {
 		Short: "Keep your docs in sync with your Go code",
 	}
 	rootCmd.AddCommand(newFormatCmd())
+	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newInitCmd())
 	return rootCmd
 }

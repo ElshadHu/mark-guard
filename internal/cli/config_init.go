@@ -21,10 +21,11 @@ type providerPreset struct {
 
 // initConfig holds the values collected during interactive setup.
 type initConfig struct {
-	BaseURL   string
-	APIKeyEnv string
-	Model     string
-	DocPaths  []string
+	BaseURL        string
+	APIKeyEnv      string
+	Model          string
+	DocPaths       []string
+	GenerateOutput string
 }
 
 var presets = []providerPreset{
@@ -150,7 +151,12 @@ llm:
 docs:
   # Directories and files mark-guard will scan for markdown docs.
   paths:
-%s`, cfg.BaseURL, cfg.APIKeyEnv, cfg.Model, pathLines)
+%s
+generate:
+  # Default output for 'mark-guard generate'.
+  # A directory path creates one file per package; a .md file appends all docs to that file.
+  output: %q
+`, cfg.BaseURL, cfg.APIKeyEnv, cfg.Model, pathLines, cfg.GenerateOutput)
 
 	return os.WriteFile(path, []byte(content), 0o644)
 }
@@ -217,6 +223,10 @@ func runConfigInit(configPath string, in io.Reader, out io.Writer) error {
 		return err
 	}
 	cfg.DocPaths, err = promptDocPaths(sc, out)
+	if err != nil {
+		return err
+	}
+	cfg.GenerateOutput, err = ask(sc, out, "generate output: directory or .md file to append to", "README.md")
 	if err != nil {
 		return err
 	}

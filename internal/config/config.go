@@ -12,8 +12,9 @@ import (
 
 // Config is the top level configuration
 type Config struct {
-	LLM  LLMConfig  `yaml:"llm"`
-	Docs DocsConfig `yaml:"docs"`
+	LLM      LLMConfig      `yaml:"llm"`
+	Docs     DocsConfig     `yaml:"docs"`
+	Generate GenerateConfig `yaml:"generate"`
 }
 
 // LLMConfig holds settings for LLM provider
@@ -28,6 +29,13 @@ type DocsConfig struct {
 	Paths    []string           `yaml:"paths"`
 	Exclude  []string           `yaml:"exclude"`
 	Mappings []model.DocMapping `yaml:"mappings"`
+}
+
+// GenerateConfig holds settings for the generate command
+type GenerateConfig struct {
+	// Output is the default destination for generated docs: a directory for
+	// per-package files, or a .md file to append all docs to (e.g. README.md).
+	Output string `yaml:"output"`
 }
 
 // defaults returns a Config with sensible default values

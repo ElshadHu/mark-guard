@@ -1,4 +1,4 @@
-.PHONY: build run run-init lint fmt clean test test-v cover vet check
+.PHONY: build run run-init run-generate generate generate-write lint fmt clean test test-v cover vet check
 
 BINARY=mark-guard
 
@@ -10,6 +10,15 @@ run:
 
 run-init:
 	go run ./cmd/mark-guard init $(ARGS)
+
+run-generate:
+	go run ./cmd/mark-guard generate $(ARGS)
+
+generate:
+	go run ./cmd/mark-guard generate $(ARGS)
+
+generate-write:
+	go run ./cmd/mark-guard generate --write $(ARGS)
 
 test:
 	@if find . -name '*_test.go' | grep -q .; then \

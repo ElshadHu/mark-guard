@@ -43,30 +43,34 @@ End-to-end pipeline works. I might change the prompt section with detailed `XML`
 
 ## Usage
 
+### format
+
+Updates existing docs based on changed symbols in the current git diff.
+
 ```bash
-# dry run — see what would change (default)
-mark-guard format
+# dry run -- see what would change (default)
+make run
 
 # apply changes to doc files
-mark-guard format --write
+make run ARGS="--write"
 
 # see the full diff summary, prompt, and raw LLM response
-mark-guard format --debug
+make run ARGS="--debug"
 
 # bypass content-loss safety checks
-mark-guard format --write --force
+make run ARGS="--write --force"
 
 # compare against a specific git ref
-mark-guard format --base HEAD~3
+make run ARGS="--base HEAD~3"
 
 # use a custom config file
-mark-guard format --config path/to/.markguard.yaml
+make run ARGS="--config path/to/.markguard.yaml"
 
 # abort if token estimate exceeds a limit
-mark-guard format --max-tokens 30000
+make run ARGS="--max-tokens 30000"
 ```
 
-### Flags
+#### format flags
 
 | Flag | Default | Description |
 |---|---|---|
@@ -76,6 +80,47 @@ mark-guard format --max-tokens 30000
 | `--force` | `false` | Bypass content-loss safety checks |
 | `--max-tokens` | `50000` | Abort if estimated tokens exceed this limit |
 | `--write` | `false` | Apply changes to doc files (dry-run by default) |
+
+### generate
+
+Bootstraps docs from scratch by parsing all exported Go symbols and sending them to the LLM. Use this when no docs exist yet. Use `format` for ongoing updates.
+
+```bash
+# dry run -- preview what would be generated
+make generate
+
+# append all packages to README.md
+make generate-write ARGS="--output README.md"
+
+# write one file per package into docs/
+make generate-write ARGS="--output docs/"
+
+# target a subdirectory of your repo
+make generate-write ARGS="./internal/llm --output docs/"
+
+# overwrite existing files in directory mode
+make generate-write ARGS="--output docs/ --force"
+
+# preview with full LLM prompt visible
+make generate ARGS="--debug"
+```
+
+Output routing:
+- `--output README.md` (any `.md` file): all packages are appended to that single file, sorted alphabetically and separated by horizontal rules.
+- `--output docs/` (directory): one `<pkgname>.md` file is created per package.
+
+If `--output` is not passed, the value from `generate.output` in `.markguard.yaml` is used, then `docs.paths[0]`, then `docs/` as a final fallback.
+
+#### generate flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--output` | from config | Directory or `.md` file destination |
+| `--config` | `.markguard.yaml` | Path to config file |
+| `--max-tokens` | `50000` | Abort if estimated tokens exceed this limit |
+| `--write` | `false` | Apply changes (dry-run by default) |
+| `--force` | `false` | Overwrite existing files in directory mode |
+| `--debug` | `false` | Print symbol list, prompt, and raw LLM response |
 
 ## Docker
 
@@ -127,7 +172,6 @@ docker pull ghcr.io/elshadhu/mark-guard:1.2.3
 
 ## What It Does Not Do
 
-- Generate docs from scratch. It updates existing docs only.
 - Support languages other than Go. Each language needs its own parser. Go-only for now.
 - Auto-commit. You review the changes first.
 
@@ -160,6 +204,9 @@ docs:
       code: ["internal/git/", "internal/config/"]
     - docs: ["README.md"]
       code: ["cmd/", "internal/cli/"]
+generate:
+  # a .md file appends all packages; a directory creates one file per package
+  output: "README.md"
 ```
 
 Without `.markguard.yaml`, defaults are:
@@ -175,6 +222,8 @@ make build     # build binary to bin/mark-guard
 make test      # go test ./... -v -race
 make lint      # golangci-lint run ./...
 make run       # go run ./cmd/mark-guard format
+make generate  # dry-run generate (preview only)
+make generate-write  # generate and append to configured output
 ```
 
 ## References

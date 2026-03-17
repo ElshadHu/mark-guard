@@ -94,6 +94,7 @@ func runFormat(opts *FormatOptions) error {
 	}
 	if len(scanResult.Docs) == 0 {
 		fmt.Println("no documentation files found to update")
+		fmt.Println("  hint: run 'mark-guard generate --write' to create initial docs from your Go symbols")
 		return nil
 	}
 	fmt.Printf("scanning %d doc file(s) (est. %d tokens)\n",
